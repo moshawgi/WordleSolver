@@ -1,0 +1,180 @@
+import unittest
+import random
+import time
+import sys
+import os
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.join(current_dir, '..')
+sys.path.append(parent_dir)
+grandparent_dir = os.path.join(parent_dir, '..')
+sys.path.append(grandparent_dir)
+
+try:
+    from WordleAI import WordleAI as WordleAI
+except ModuleNotFoundError:
+    print("WordleAI.py is not found.")
+    
+from wordle_secret_words import get_secret_words
+from valid_wordle_guesses import get_valid_wordle_guesses
+
+# Force a timeout message (failed test) if test runtime exceeds this number of seconds.
+MAX_TIMEOUT_SECONDS = 4 * 60
+
+def play_1_game(secret_word:str, AI:WordleAI)->list[str]:
+    guesses = []
+    feedback = []
+    game_over = False
+
+    while not game_over:
+        guesses.append(AI.guess(guesses, feedback))
+        feedback.append(AI.get_feedback(guesses[len(guesses)-1], secret_word))
+        if len(guesses) >= 6 or guesses[len(guesses)-1] == secret_word:
+            game_over=True
+
+    return guesses
+
+class Test_Wordle_get_AI_guess(unittest.TestCase):
+  def setUp(self):
+       self.possible_answers = get_secret_words()
+       self.valid_guesses = get_valid_wordle_guesses()
+       self.AI = WordleAI(self.valid_guesses, self.possible_answers)
+
+  def test_1(self):
+      """get_AI_guess - Basic Requirements"""
+      guesses =()
+      feedback = ()
+      guess = self.AI.guess(guesses, feedback)
+      self.assertEqual(True, isinstance(guess, str), "Returned value isn't a string.")
+      print("get_AI_guess is present and returns a string")
+      self.assertEqual(len(guess), 5)
+      self.assertEqual(guess in get_valid_wordle_guesses(), True, "Returned word is not a valid Wordle guess.")
+      print("AI guess is a valid 5-letter word.")
+
+  def test_2(self, set_leaderboard_value=None):
+      """AI Player - Basic Profiler (shuffled wordlist w/ all possible Wordle answers)"""
+      wins = 0
+      skill = 0
+      total_time = 0
+      numWords = len(get_secret_words())
+      possible_wordle_words = list(self.possible_answers)
+      random.shuffle(possible_wordle_words)
+
+      for secret_word in possible_wordle_words:
+          self.assertEqual(len(self.AI.possible_answers), numWords, "WordleAI should not modify it's possible_answers data attribute")
+          self.assertEqual(len(self.AI.valid_guesses), len(self.valid_guesses), "WordleAI should not modify it's valid_guesses data attribute")
+
+          start_time = time.time()
+          guesses = play_1_game(secret_word, self.AI)
+          total_time += time.time() - start_time
+
+          self.assertGreaterEqual(len(guesses), 1, "Length of guesses should be at least 1")
+          self.assertLessEqual(len(guesses), 6, "Length of guesses should be less than or equal to 6.")
+          
+          for guess in guesses:
+            self.assertEqual(True, isinstance(guess, str), "Returned guesses should be strings.")
+            self.assertEqual(guess in self.valid_guesses, True, "Returned guess should be a valid Wordle guess.")
+
+          if secret_word==guesses[len(guesses)-1]:
+              wins += 1
+              skill += len(guesses)
+          
+          self.assertTrue(total_time < MAX_TIMEOUT_SECONDS, f"The test timed out after {MAX_TIMEOUT_SECONDS / 60} minutes. See if you can improve the efficiency of get_AI_guess.")
+      
+      print("*"*19)
+      print("Test: AI Player - Basic Profiler (huffled wordlist w/ all possible Wordle answers")
+      print(f"Total Games: {numWords}")
+      accuracy = (wins/numWords)*100
+      if wins>0: 
+         skill = skill/wins
+      else:
+         skill = 0   
+      print(f"Wins: {wins}  Accuracy: {round(accuracy, 2)}%  Avg Guesses per win: {skill}   Avg time per guess: {round(total_time/numWords, 5)}s")
+      print("*"*20)
+
+  def test_3(self, set_leaderboard_value=None):
+      """AI Player - Hardest Words for Humans (per NY Times)"""
+      wins = 0
+      skill = 0
+      total_time = 0
+      hardest_words = ["PARER", "ATONE", "COYLY", "JOKER", "JAZZY", "CATCH", "KAZOO", "NANNY", "MUMMY", "JUDGE"]
+      random.shuffle(hardest_words)
+      numWords = len(hardest_words)
+
+      for secret_word in hardest_words:
+          self.assertEqual(len(self.AI.possible_answers), len(self.possible_answers), "WordleAI should not modify it's possible_answers data attribute")
+          self.assertEqual(len(self.AI.valid_guesses), len(self.valid_guesses), "WordleAI should not modify it's valid_guesses data attribute")
+
+          start_time = time.time()
+          guesses = play_1_game(secret_word, self.AI)
+          total_time += time.time() - start_time
+
+          self.assertGreaterEqual(len(guesses), 1, "Length of guesses should be at least 1")
+          self.assertLessEqual(len(guesses), 6, "Length of guesses should be less than or equal to 6.")
+          
+          for guess in guesses:
+            self.assertEqual(True, isinstance(guess, str), "Returned guesses should be strings.")
+            self.assertEqual(guess in self.valid_guesses, True, "Returned guess should be a valid Wordle guess.")
+
+          if secret_word==guesses[len(guesses)-1]:
+              wins += 1
+              skill += len(guesses)
+          
+          self.assertTrue(total_time < MAX_TIMEOUT_SECONDS, f"The test timed out after {MAX_TIMEOUT_SECONDS / 60} minutes. See if you can improve the efficiency of get_AI_guess.")
+      
+      print("*"*19)
+      print("Test: AI Player - Hardest Words for Humans (per NY Times)")
+      print(f"Total Games: {numWords}")
+      accuracy = (wins/numWords)*100
+      if wins>0: 
+         skill = skill/wins
+      else:
+         skill = 0   
+      print(f"Wins: {wins}  Accuracy: {round(accuracy, 2)}%  Avg Guesses per win: {skill}   Avg time per guess: {round(total_time/numWords, 5)}s")
+      print("*"*20)
+  
+  def test_4(self):
+      """AI Player - Advanced Profiler (shuffled wordlist w/ randomly chosen words from the list of valid guesses)"""
+      wins = 0
+      skill = 0
+      total_time=0
+      numWords = len(self.possible_answers)
+
+      random_word_list = list(get_valid_wordle_guesses())
+      random.shuffle(random_word_list)
+      random_word_list = random_word_list[0:numWords]
+      self.AI = WordleAI(self.valid_guesses, random_word_list)
+      for secret_word in random_word_list:
+          self.assertEqual(len(self.AI.possible_answers), len(self.possible_answers), "WordleAI should not modify it's possible_answers data attribute")
+          self.assertEqual(len(self.AI.valid_guesses), len(self.valid_guesses), "WordleAI should not modify it's valid_guesses data attribute")
+
+          start_time = time.time()
+          guesses = play_1_game(secret_word, self.AI)
+          total_time += time.time() - start_time
+
+          self.assertGreaterEqual(len(guesses), 1, "Length of guesses should be at least 1")
+          self.assertLessEqual(len(guesses), 6, "Length of guesses should be less than or equal to 6.")
+          
+          for guess in guesses:
+            self.assertEqual(True, isinstance(guess, str), "Returned guesses should be strings.")
+            self.assertEqual(guess in self.valid_guesses, True, "Returned guess should be a valid Wordle guess.")
+
+          if secret_word==guesses[len(guesses)-1]:
+              wins += 1
+              skill += len(guesses)
+          
+          self.assertTrue(total_time < MAX_TIMEOUT_SECONDS, f"The test timed out after {MAX_TIMEOUT_SECONDS / 60} minutes. See if you can improve the efficiency of get_AI_guess.")
+      
+      print("*"*19)
+      print("Test: AI Player - Advanced Profiler (shuffled wordlist w/ randomly chosen words from the list of valid guesses)")
+      print(f"Total Games: {numWords}")
+      accuracy = (wins/numWords)*100
+      if wins>0: 
+         skill = skill/wins
+      else:
+         skill = 0   
+      print(f"Wins: {wins}  Accuracy: {round(accuracy, 2)}%  Avg Guesses per win: {skill}   Avg time per guess: {round(total_time/numWords, 5)}s")
+      print("*"*20)
+  
+if __name__ == '__main__':
+   	unittest.main()
